@@ -72,6 +72,12 @@ export class AuthService implements IAuthService {
         user.username = resultSet.getString(resultSet.getColumnIndex('username'));
         user.passwordHash = resultSet.getString(resultSet.getColumnIndex('password_hash'));
         user.createdAt = resultSet.getLong(resultSet.getColumnIndex('created_at'));
+        // 读取头像路径（兼容旧表没有该列的情况）
+        try {
+          user.avatarPath = resultSet.getString(resultSet.getColumnIndex('avatar_path'));
+        } catch (e) {
+          user.avatarPath = '';
+        }
         resultSet.close();
 
         this.currentUser = user;
@@ -163,6 +169,12 @@ export class AuthService implements IAuthService {
         user.username = resultSet.getString(resultSet.getColumnIndex('username'));
         user.passwordHash = resultSet.getString(resultSet.getColumnIndex('password_hash'));
         user.createdAt = resultSet.getLong(resultSet.getColumnIndex('created_at'));
+        // 读取头像路径（兼容旧表没有该列的情况）
+        try {
+          user.avatarPath = resultSet.getString(resultSet.getColumnIndex('avatar_path'));
+        } catch (e) {
+          user.avatarPath = '';
+        }
         resultSet.close();
 
         this.currentUser = user;
@@ -183,6 +195,98 @@ export class AuthService implements IAuthService {
   async saveCredentials(username: string, passwordHash: string): Promise<void> {
     await this.saveConfig(CONFIG_KEY_SAVED_USERNAME, username);
     await this.saveConfig(CONFIG_KEY_SAVED_PASSWORD_HASH, passwordHash);
+  }
+
+  // ========== 用户信息修改 ==========
+
+  async updateUsername(newUsername: string): Promise<boolean> {
+    if (!this.currentUser) {
+      return false;
+    }
+    if (newUsername.length < 2) {
+      return false;
+    }
+    const store = this.dbRepo.getStore();
+    if (!store) {
+      return false;
+    }
+    try {
+      // 检查用户名是否已被占用
+      const predicates = new relationalStore.RdbPredicates(TABLE_USERS);
+      predicates.equalTo('username', newUsername);
+      predicates.notEqualTo('id', this.currentUser.id);
+      const resultSet = await store.query(predicates, ['id']);
+      if (resultSet.goToFirstRow()) {
+        resultSet.close();
+        logError('Username already taken');
+        return false;
+      }
+      resultSet.close();
+
+      const values: Record<string, relationalStore.ValueType> = { 'username': newUsername };
+      const updatePred = new relationalStore.RdbPredicates(TABLE_USERS);
+      updatePred.equalTo('id', this.currentUser.id);
+      await store.update(values, updatePred);
+      this.currentUser.username = newUsername;
+      logInfo('Username updated to: %{public}s', newUsername);
+      return true;
+    } catch (err) {
+      logError('Update username failed: %{public}s', (err as Error).message ?? '');
+      return false;
+    }
+  }
+
+  async updatePassword(oldPassword: string, newPassword: string): Promise<boolean> {
+    if (!this.currentUser) {
+      return false;
+    }
+    const oldHash = this.hashPassword(oldPassword);
+    if (oldHash !== this.currentUser.passwordHash) {
+      logError('Old password incorrect');
+      return false;
+    }
+    if (newPassword.length < 4) {
+      return false;
+    }
+    const store = this.dbRepo.getStore();
+    if (!store) {
+      return false;
+    }
+    try {
+      const newHash = this.hashPassword(newPassword);
+      const values: Record<string, relationalStore.ValueType> = { 'password_hash': newHash };
+      const predicates = new relationalStore.RdbPredicates(TABLE_USERS);
+      predicates.equalTo('id', this.currentUser.id);
+      await store.update(values, predicates);
+      this.currentUser.passwordHash = newHash;
+      logInfo('Password updated');
+      return true;
+    } catch (err) {
+      logError('Update password failed: %{public}s', (err as Error).message ?? '');
+      return false;
+    }
+  }
+
+  async updateAvatar(avatarPath: string): Promise<boolean> {
+    if (!this.currentUser) {
+      return false;
+    }
+    const store = this.dbRepo.getStore();
+    if (!store) {
+      return false;
+    }
+    try {
+      const values: Record<string, relationalStore.ValueType> = { 'avatar_path': avatarPath };
+      const predicates = new relationalStore.RdbPredicates(TABLE_USERS);
+      predicates.equalTo('id', this.currentUser.id);
+      await store.update(values, predicates);
+      this.currentUser.avatarPath = avatarPath;
+      logInfo('Avatar updated');
+      return true;
+    } catch (err) {
+      logError('Update avatar failed: %{public}s', (err as Error).message ?? '');
+      return false;
+    }
   }
 
   // ========== 内部方法 ==========

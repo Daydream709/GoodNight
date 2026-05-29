@@ -26,4 +26,7 @@ export interface IDataRepository {
 
   /** 开始新周期（自动结束旧周期） */
   startNewCycle(): Promise<CycleInfo>;
+
+  /** 按日期范围查询监测记录 */
+  getDailyRecordsByDateRange(startDateKey: string, endDateKey: string): Promise<DailyRecord[]>;
 }

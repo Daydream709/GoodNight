@@ -167,6 +167,19 @@ export class DatabaseRepository implements IDataRepository {
     }
   }
 
+  async getDailyRecordsByDateRange(startDateKey: string, endDateKey: string): Promise<DailyRecord[]> {
+    this.ensureReady();
+    try {
+      const sql = 'SELECT * FROM ' + TABLE_DAILY_RECORDS +
+        ' WHERE date_key >= ? AND date_key <= ? ORDER BY date_key ASC';
+      const resultSet = await this.store!.querySql(sql, [startDateKey, endDateKey]);
+      return this.readAllRecords(resultSet);
+    } catch (err) {
+      logError('Failed to query records by range: %{public}s', (err as Error).message ?? '');
+      return [];
+    }
+  }
+
   async startNewCycle(): Promise<CycleInfo> {
     // 结束旧周期
     try {
@@ -238,6 +251,12 @@ export class DatabaseRepository implements IDataRepository {
       'key TEXT PRIMARY KEY, ' +
       'value TEXT NOT NULL)'
     );
+    // 迁移：为旧表添加 avatar_path 列
+    try {
+      await this.store!.executeSql('ALTER TABLE ' + TABLE_USERS + ' ADD COLUMN avatar_path TEXT NOT NULL DEFAULT \'\'');
+    } catch (err) {
+      // 列已存在，忽略
+    }
   }
 
   private readCycleFromCursor(resultSet: relationalStore.ResultSet): CycleInfo {

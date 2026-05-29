@@ -6,4 +6,5 @@ export class User {
   username: string = '';
   passwordHash: string = '';
   createdAt: number = 0;
+  avatarPath: string = '';
 }

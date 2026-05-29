@@ -55,6 +55,10 @@
     {
       "name": "btn_stop_monitor",
       "value": "Stop Monitoring"
+    },
+    {
+      "name": "perm_read_media_reason",
+      "value": "Need to select avatar image from gallery"
     }
   ]
 }

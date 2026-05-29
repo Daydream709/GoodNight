@@ -39,4 +39,13 @@ export interface IAuthService {
 
   /** 检查自动登录并尝试自动登录 */
   tryAutoLogin(): Promise<boolean>;
+
+  /** 修改用户名 */
+  updateUsername(newUsername: string): Promise<boolean>;
+
+  /** 修改密码 */
+  updatePassword(oldPassword: string, newPassword: string): Promise<boolean>;
+
+  /** 修改头像路径 */
+  updateAvatar(avatarPath: string): Promise<boolean>;
 }
