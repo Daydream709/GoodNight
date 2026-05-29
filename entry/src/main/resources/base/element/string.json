@@ -1,0 +1,60 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Good Night sleep monitoring app"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Main ability for Good Night sleep monitoring"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "好梦"
+    },
+    {
+      "name": "perm_accelerometer_reason",
+      "value": "Need to detect phone movement during sleep hours"
+    },
+    {
+      "name": "perm_background_reason",
+      "value": "Need to monitor sleep activity overnight"
+    },
+    {
+      "name": "label_current_cycle",
+      "value": "Current Cycle"
+    },
+    {
+      "name": "label_remaining_points",
+      "value": "Remaining Points"
+    },
+    {
+      "name": "label_returned_points",
+      "value": "Returned Points"
+    },
+    {
+      "name": "label_last_night",
+      "value": "Last Night"
+    },
+    {
+      "name": "status_compliant",
+      "value": "Good sleep!"
+    },
+    {
+      "name": "status_non_compliant",
+      "value": "Late night detected"
+    },
+    {
+      "name": "status_no_data",
+      "value": "No data yet"
+    },
+    {
+      "name": "btn_new_cycle",
+      "value": "Start New Cycle"
+    },
+    {
+      "name": "btn_stop_monitor",
+      "value": "Stop Monitoring"
+    }
+  ]
+}

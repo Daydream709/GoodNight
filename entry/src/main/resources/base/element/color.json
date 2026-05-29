@@ -1,0 +1,36 @@
+{
+  "color": [
+    {
+      "name": "start_window_background",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "primary_color",
+      "value": "#6C5CE7"
+    },
+    {
+      "name": "success_color",
+      "value": "#00B894"
+    },
+    {
+      "name": "danger_color",
+      "value": "#E17055"
+    },
+    {
+      "name": "card_background",
+      "value": "#F8F9FA"
+    },
+    {
+      "name": "text_primary",
+      "value": "#2D3436"
+    },
+    {
+      "name": "text_secondary",
+      "value": "#636E72"
+    },
+    {
+      "name": "progress_track",
+      "value": "#DFE6E9"
+    }
+  ]
+}
