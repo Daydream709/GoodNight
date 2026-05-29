@@ -5,11 +5,17 @@
 import { HomeTab } from '../tabs/HomeTab';
 import { StatisticsTab } from '../tabs/StatisticsTab';
 import { ProfileTab } from '../tabs/ProfileTab';
+import { AppColors } from '../common/AppColors';
 
 @Entry
 @Component
 struct Index {
+  @StorageLink('isDarkMode') isDarkMode: boolean = false;
   @State currentIndex: number = 0;
+
+  aboutToAppear(): void {
+    PersistentStorage.persistProp('isDarkMode', false);
+  }
 
   build() {
     Column() {
@@ -17,20 +23,20 @@ struct Index {
         TabContent() {
           HomeTab()
         }
-        .tabBar(this.TabBuilder('主页', 0))
+        .tabBar(this.TabBuilder($r('app.media.tab_home'), '主页', 0))
 
         TabContent() {
           StatisticsTab()
         }
-        .tabBar(this.TabBuilder('统计', 1))
+        .tabBar(this.TabBuilder($r('app.media.tab_stats'), '统计', 1))
 
         TabContent() {
           ProfileTab()
         }
-        .tabBar(this.TabBuilder('我的', 2))
+        .tabBar(this.TabBuilder($r('app.media.tab_profile'), '我的', 2))
       }
       .scrollable(false)
-      .barBackgroundColor(Color.White)
+      .barBackgroundColor(this.colors().tabBarBg)
       .barMode(BarMode.Fixed)
       .width('100%')
       .layoutWeight(1)
@@ -40,15 +46,25 @@ struct Index {
     }
     .width('100%')
     .height('100%')
+    .backgroundColor(this.colors().background)
+  }
+
+  private colors() {
+    return AppColors.current(this.isDarkMode);
   }
 
   @Builder
-  TabBuilder(title: string, index: number): void {
+  TabBuilder(icon: Resource, title: string, index: number): void {
     Column() {
+      Image(icon)
+        .width(24)
+        .height(24)
+        .fillColor(this.currentIndex === index ? this.colors().primary : this.colors().textSecondary)
       Text(title)
-        .fontSize(14)
-        .fontColor(this.currentIndex === index ? '#6C5CE7' : '#636E72')
+        .fontSize(12)
+        .fontColor(this.currentIndex === index ? this.colors().primary : this.colors().textSecondary)
         .fontWeight(this.currentIndex === index ? FontWeight.Bold : FontWeight.Normal)
+        .margin({ top: 2 })
     }
     .width('100%')
     .height('100%')

@@ -170,9 +170,11 @@ export class DatabaseRepository implements IDataRepository {
   async getDailyRecordsByDateRange(startDateKey: string, endDateKey: string): Promise<DailyRecord[]> {
     this.ensureReady();
     try {
-      const sql = 'SELECT * FROM ' + TABLE_DAILY_RECORDS +
-        ' WHERE date_key >= ? AND date_key <= ? ORDER BY date_key ASC';
-      const resultSet = await this.store!.querySql(sql, [startDateKey, endDateKey]);
+      const predicates = new relationalStore.RdbPredicates(TABLE_DAILY_RECORDS);
+      predicates.greaterThanOrEqualTo('date_key', startDateKey);
+      predicates.lessThanOrEqualTo('date_key', endDateKey);
+      predicates.orderByAsc('date_key');
+      const resultSet = await this.store!.query(predicates);
       return this.readAllRecords(resultSet);
     } catch (err) {
       logError('Failed to query records by range: %{public}s', (err as Error).message ?? '');

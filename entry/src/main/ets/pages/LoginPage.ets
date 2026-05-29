@@ -4,6 +4,7 @@
 import { router } from '@kit.ArkUI';
 import { DatabaseRepository } from '../service/data/DatabaseRepository';
 import { AuthService } from '../service/auth/AuthService';
+import { TestDataGenerator } from '../common/TestDataGenerator';
 import { logInfo, logError } from '../common/Logger';
 
 @Entry
@@ -15,6 +16,7 @@ struct LoginPage {
   @State autoLogin: boolean = false;
   @State isLoading: boolean = false;
   @State errorMsg: string = '';
+  @State testMsg: string = '';
 
   private authService: AuthService | null = null;
   private dbRepo: DatabaseRepository = new DatabaseRepository();
@@ -156,6 +158,22 @@ struct LoginPage {
         .onClick(() => {
           router.pushUrl({ url: 'pages/RegisterPage' });
         })
+
+      // 生成测试数据
+      Text('生成测试数据')
+        .fontSize(12)
+        .fontColor('#636E72')
+        .margin({ top: 32 })
+        .onClick(() => {
+          this.handleGenerateTestData();
+        })
+
+      if (this.testMsg) {
+        Text(this.testMsg)
+          .fontSize(12)
+          .fontColor('#00B894')
+          .margin({ top: 4 })
+      }
     }
     .width('100%')
     .height('100%')
@@ -203,5 +221,16 @@ struct LoginPage {
     AppStorage.setOrCreate('authService', this.authService);
 
     router.replaceUrl({ url: 'pages/Index' });
+  }
+
+  private async handleGenerateTestData(): Promise<void> {
+    const store = this.dbRepo.getStore();
+    if (!store) {
+      this.testMsg = '数据库未就绪';
+      return;
+    }
+    this.testMsg = '正在生成...';
+    const ok = await TestDataGenerator.generate(store);
+    this.testMsg = ok ? '已生成 test01 用户及一年数据' : '生成失败';
   }
 }
