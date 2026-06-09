@@ -4,6 +4,8 @@
  */
 import { relationalStore } from '@kit.ArkData';
 import { SleepJudgment } from '../model/SleepJudgment';
+import { formatDateKey } from './DateUtils';
+import { hashPassword } from './PasswordHasher';
 import { logInfo, logError } from './Logger';
 
 export class TestDataGenerator {
@@ -21,8 +23,8 @@ export class TestDataGenerator {
       resultSet.close();
 
       if (userExists) {
-        // 检查是否已有日常记录
-        resultSet = await store.querySql('SELECT COUNT(*) as cnt FROM daily_records');
+        // 检查该用户是否已有日常记录
+        resultSet = await store.querySql('SELECT COUNT(*) as cnt FROM daily_records WHERE user_id = ?', [userId]);
         let recordCount = 0;
         if (resultSet.goToFirstRow()) {
           recordCount = resultSet.getLong(0);
@@ -34,15 +36,15 @@ export class TestDataGenerator {
           return true;
         }
 
-        // 数据不完整，清理后重新生成
+        // 数据不完整，清理该用户旧数据后重新生成
         logInfo('Incomplete test data (%{public}s records), regenerating...', recordCount.toString());
         await store.executeSql('DELETE FROM cycles WHERE user_id = ?', [userId]);
+        await store.executeSql('DELETE FROM daily_records WHERE user_id = ?', [userId]);
         await store.executeSql('DELETE FROM users WHERE id = ?', [userId]);
-        // 不删除 daily_records，用 INSERT try/catch 跳过已有记录
       }
 
       // 2. 插入 test01 用户
-      const passwordHash = TestDataGenerator.hashPassword('test01');
+      const passwordHash = hashPassword('test01');
       const userValues: Record<string, relationalStore.ValueType> = {
         'username': 'test01',
         'password_hash': passwordHash,
@@ -84,7 +86,7 @@ export class TestDataGenerator {
           break;
         }
 
-        const dateKey = TestDataGenerator.formatDateKey(currentDate);
+        const dateKey = formatDateKey(currentDate);
         const dayOfWeek = currentDate.getDay();
 
         // 周末更容易熬夜
@@ -137,6 +139,7 @@ export class TestDataGenerator {
 
         // 使用 store.insert() 而非 executeSql，确保可靠写入
         const recordValues: Record<string, relationalStore.ValueType> = {
+          'user_id': userId,
           'date_key': dateKey,
           'judgment': judgment,
           'screen_on_count': screenOnCount,
@@ -156,10 +159,10 @@ export class TestDataGenerator {
         // 每满 30 天生成一个周期
         cycleDayIndex++;
         if (cycleDayIndex === 30 || i === totalDays - 1) {
-          const cycleStartKey = TestDataGenerator.formatDateKey(cycleStart);
+          const cycleStartKey = formatDateKey(cycleStart);
           const cycleEndDate = new Date(cycleStart.getTime());
           cycleEndDate.setDate(cycleEndDate.getDate() + 29);
-          const cycleEndKey = TestDataGenerator.formatDateKey(cycleEndDate);
+          const cycleEndKey = formatDateKey(cycleEndDate);
 
           const isActive: number = cycleEndDate >= today ? 1 : 0;
           const daysSinceStart = Math.floor((today.getTime() - cycleStart.getTime()) / 86400000) + 1;
@@ -191,22 +194,5 @@ export class TestDataGenerator {
       logError('Test data generation failed: %{public}s', (err as Error).message ?? '');
       return false;
     }
-  }
-
-  private static hashPassword(password: string): string {
-    let hash: number = 0;
-    for (let i = 0; i < password.length; i++) {
-      const ch = password.charCodeAt(i);
-      hash = ((hash << 5) - hash) + ch;
-      hash = hash & hash;
-    }
-    return 'h_' + Math.abs(hash).toString(36);
-  }
-
-  private static formatDateKey(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
   }
 }

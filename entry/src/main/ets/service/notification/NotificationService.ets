@@ -6,10 +6,12 @@ import { notificationManager } from '@kit.NotificationKit';
 import { INotificationService } from '../../interface/INotificationService';
 import { CycleInfo } from '../../model/CycleInfo';
 import { NOTIFICATION_ID_MONITOR, NOTIFICATION_ID_RESULT, NOTIFICATION_ID_CYCLE } from '../../common/Constants';
+import { AppSettings } from '../../common/AppSettings';
 import { logInfo, logError } from '../../common/Logger';
 
 export class NotificationService implements INotificationService {
   async notifyMonitoringStarted(): Promise<void> {
+    if (!AppSettings.notificationsEnabled) { return; }
     try {
       const request: notificationManager.NotificationRequest = {
         id: NOTIFICATION_ID_MONITOR,
@@ -30,6 +32,7 @@ export class NotificationService implements INotificationService {
   }
 
   async notifyComplianceResult(compliant: boolean, dateKey: string): Promise<void> {
+    if (!AppSettings.notificationsEnabled) { return; }
     try {
       const title = compliant ? '好梦 - 睡眠达标！' : '好梦 - 检测到熬夜';
       const text = compliant
@@ -54,6 +57,7 @@ export class NotificationService implements INotificationService {
   }
 
   async notifyCycleSummary(cycle: CycleInfo): Promise<void> {
+    if (!AppSettings.notificationsEnabled) { return; }
     try {
       const title = '好梦 - 周期结束';
       const text = `30 天周期已结束！共返还 ${cycle.pointsReturned} / ${cycle.pointsInvested} 点数。`;

@@ -4,6 +4,7 @@
 import { DailyRecord } from '../model/DailyRecord';
 import { SleepJudgment } from '../model/SleepJudgment';
 import { SleepStats } from '../model/SleepStats';
+import { getDateKeyDaysAgo, getTodayKey } from './DateUtils';
 
 export class StatsCalculator {
   static calculate(records: DailyRecord[]): SleepStats {
@@ -106,22 +107,13 @@ export class StatsCalculator {
   }
 
   /**
-   * 计算指定天数前的日期键
+   * 计算指定天数前的日期键（转发至 DateUtils，保留静态入口兼容调用方）
    */
   static getDateKeyDaysAgo(days: number): string {
-    const date = new Date();
-    date.setDate(date.getDate() - days);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return getDateKeyDaysAgo(days);
   }
 
   static getTodayKey(): string {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return getTodayKey();
   }
 }

@@ -35,8 +35,9 @@ export class AppColors {
     divider: '#DFE6E9',
     tabBarBg: '#FFFFFF',
     avatarPlaceholder: '#DFE6E9',
+    // 浅色模式下卡片为不透明白底 + 浅灰描边（无毛玻璃，blur 对实色无意义）
     glassBg: '#FFFFFF',
-    glassBorder: '#FFFFFF',
+    glassBorder: '#E8EAED',
     glassInputBg: '#F0F2F5',
     glassBlur: 0,
   };

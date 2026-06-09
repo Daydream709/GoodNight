@@ -19,14 +19,14 @@ export interface IAuthService {
   /** 获取当前登录用户 */
   getCurrentUser(): User | null;
 
-  /** 是否记住了密码 */
-  isRememberPassword(): boolean;
+  /** 是否记住了账号 */
+  isRememberAccount(): boolean;
 
   /** 是否开启了自动登录 */
   isAutoLogin(): boolean;
 
-  /** 设置记住密码 */
-  setRememberPassword(remember: boolean): Promise<void>;
+  /** 设置记住账号 */
+  setRememberAccount(remember: boolean): Promise<void>;
 
   /** 设置自动登录 */
   setAutoLogin(auto: boolean): Promise<void>;
@@ -34,8 +34,8 @@ export interface IAuthService {
   /** 获取记住的用户名 */
   getSavedUsername(): string;
 
-  /** 获取记住的密码哈希 */
-  getSavedPasswordHash(): string;
+  /** 保存记住的用户名 */
+  saveUsername(username: string): Promise<void>;
 
   /** 检查自动登录并尝试自动登录 */
   tryAutoLogin(): Promise<boolean>;

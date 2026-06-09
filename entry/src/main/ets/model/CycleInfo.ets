@@ -1,6 +1,7 @@
 /**
  * 30 天周期数据类
  */
+import { CYCLE_DURATION_DAYS } from '../common/Constants';
 
 /** JSON 序列化接口 */
 export interface CycleInfoJson {
@@ -40,7 +41,7 @@ export class CycleInfo {
    * 计算周期进度百分比
    */
   getProgressPercent(): number {
-    return Math.min((this.currentDayIndex / 30) * 100, 100);
+    return Math.min((this.currentDayIndex / CYCLE_DURATION_DAYS) * 100, 100);
   }
 
   /**

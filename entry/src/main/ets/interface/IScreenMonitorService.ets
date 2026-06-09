@@ -20,4 +20,7 @@ export interface IScreenMonitorService {
 
   /** 重置亮屏计数 */
   resetScreenOnCount(): void;
+
+  /** 手动记一次亮屏（离开监测页 = 一次使用手机） */
+  increment(): void;
 }

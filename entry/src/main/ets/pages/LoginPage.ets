@@ -1,18 +1,24 @@
 /**
  * 登录页面
+ * 接入 AppColors 主题体系，支持深浅色模式，与主功能区视觉统一
  */
 import { router } from '@kit.ArkUI';
+import { common } from '@kit.AbilityKit';
 import { DatabaseRepository } from '../service/data/DatabaseRepository';
 import { AuthService } from '../service/auth/AuthService';
 import { TestDataGenerator } from '../common/TestDataGenerator';
-import { logInfo, logError } from '../common/Logger';
+import { AppColors, ColorPalette } from '../common/AppColors';
+import { AppSettings } from '../common/AppSettings';
+import { EVENT_LOGIN_SUCCESS, ENABLE_DEV_TOOLS } from '../common/Constants';
+import { logError } from '../common/Logger';
 
 @Entry
 @Component
 struct LoginPage {
+  @StorageLink('isDarkMode') isDarkMode: boolean = false;
   @State username: string = '';
   @State password: string = '';
-  @State rememberPassword: boolean = false;
+  @State rememberAccount: boolean = false;
   @State autoLogin: boolean = false;
   @State isLoading: boolean = false;
   @State errorMsg: string = '';
@@ -22,20 +28,20 @@ struct LoginPage {
   private dbRepo: DatabaseRepository = new DatabaseRepository();
 
   async aboutToAppear(): Promise<void> {
+    PersistentStorage.persistProp('isDarkMode', false);
     try {
       const context = this.getUIContext().getHostContext() as Context;
       await this.dbRepo.init(context);
       this.authService = new AuthService(this.dbRepo);
       await this.authService.loadConfigCache();
+      // 加载可配置设置（睡眠窗口/阈值/通知）
+      const store = this.dbRepo.getStore();
+      if (store) { await AppSettings.load(store); }
 
-      // 填充记住的用户名密码
-      if (this.authService.isRememberPassword()) {
-        this.rememberPassword = true;
+      // 预填记住的账号
+      if (this.authService.isRememberAccount()) {
+        this.rememberAccount = true;
         this.username = this.authService.getSavedUsername();
-        // 记住密码时恢复密码字段（用 hash 标记占位）
-        if (this.authService.getSavedPasswordHash()) {
-          this.password = '••••••••'; // 占位符，表示有保存的密码
-        }
         this.autoLogin = this.authService.isAutoLogin();
       }
 
@@ -54,130 +60,152 @@ struct LoginPage {
     }
   }
 
+  private colors(): ColorPalette {
+    return AppColors.current(this.isDarkMode);
+  }
+
   build() {
     Column() {
-      // 标题
+      // 品牌标题
       Text('好梦')
-        .fontSize(36)
+        .fontSize(40)
         .fontWeight(FontWeight.Bold)
-        .fontColor('#6C5CE7')
-        .margin({ top: 80, bottom: 8 })
+        .fontColor(this.colors().primary)
+        .margin({ top: 96, bottom: 8 })
       Text('Good Night')
-        .fontSize(16)
-        .fontColor('#636E72')
-        .margin({ bottom: 48 })
+        .fontSize(15)
+        .fontColor(this.colors().textSecondary)
+        .margin({ bottom: 40 })
 
-      // 用户名输入
-      TextInput({ placeholder: '请输入用户名', text: this.username })
-        .width('80%')
-        .height(48)
-        .fontSize(16)
-        .borderRadius(12)
-        .backgroundColor(Color.White)
-        .type(InputType.Normal)
-        .onChange((value: string) => {
-          this.username = value;
-          this.errorMsg = '';
-        })
+      // 表单卡片 - 液态玻璃
+      Column({ space: 16 }) {
+        TextInput({ placeholder: '请输入用户名', text: this.username })
+          .height(48)
+          .fontSize(16)
+          .fontColor(this.colors().textPrimary)
+          .borderRadius(12)
+          .backgroundColor(this.colors().glassInputBg)
+          .type(InputType.Normal)
+          .maxLength(20)
+          .onChange((value: string) => {
+            this.username = value;
+            this.errorMsg = '';
+          })
 
-      // 密码输入
-      TextInput({ placeholder: '请输入密码', text: this.password })
-        .width('80%')
-        .height(48)
-        .fontSize(16)
-        .borderRadius(12)
-        .backgroundColor(Color.White)
-        .type(InputType.Password)
-        .margin({ top: 16 })
-        .onChange((value: string) => {
-          this.password = value;
-          this.errorMsg = '';
-        })
+        TextInput({ placeholder: '请输入密码', text: this.password })
+          .height(48)
+          .fontSize(16)
+          .fontColor(this.colors().textPrimary)
+          .borderRadius(12)
+          .backgroundColor(this.colors().glassInputBg)
+          .type(InputType.Password)
+          .showPasswordIcon(true)
+          .maxLength(32)
+          .onChange((value: string) => {
+            this.password = value;
+            this.errorMsg = '';
+          })
 
-      // 记住密码 + 自动登录
-      Row() {
+        // 记住账号 + 自动登录
         Row() {
-          Checkbox()
-            .select(this.rememberPassword)
-            .onChange((checked: boolean) => {
-              this.rememberPassword = checked;
-            })
-          Text('记住密码')
+          Row() {
+            Checkbox()
+              .select(this.rememberAccount)
+              .selectedColor(this.colors().primary)
+              .onChange((checked: boolean) => {
+                this.rememberAccount = checked;
+                if (!checked) {
+                  this.autoLogin = false;
+                }
+              })
+            Text('记住账号')
+              .fontSize(13)
+              .fontColor(this.colors().textSecondary)
+              .margin({ left: 2 })
+          }
+
+          Blank()
+
+          Row() {
+            Checkbox()
+              .select(this.autoLogin)
+              .selectedColor(this.colors().primary)
+              .onChange((checked: boolean) => {
+                this.autoLogin = checked;
+                if (checked) {
+                  this.rememberAccount = true; // 自动登录需记住账号
+                }
+              })
+            Text('自动登录')
+              .fontSize(13)
+              .fontColor(this.colors().textSecondary)
+              .margin({ left: 2 })
+          }
+        }
+        .width('100%')
+
+        if (this.errorMsg) {
+          Text(this.errorMsg)
             .fontSize(13)
-            .fontColor('#636E72')
-            .margin({ left: 4 })
+            .fontColor(this.colors().danger)
         }
 
-        Blank()
-
-        Row() {
-          Checkbox()
-            .select(this.autoLogin)
-            .onChange((checked: boolean) => {
-              this.autoLogin = checked;
-              if (checked) {
-                this.rememberPassword = true; // 自动登录必须记住密码
-              }
-            })
-          Text('自动登录')
-            .fontSize(13)
-            .fontColor('#636E72')
-            .margin({ left: 4 })
+        Button() {
+          if (this.isLoading) {
+            Row({ space: 8 }) {
+              LoadingProgress().width(22).height(22).color(Color.White)
+              Text('登录中…').fontSize(18).fontColor(Color.White)
+            }
+          } else {
+            Text('登录').fontSize(18).fontColor(Color.White)
+          }
         }
-      }
-      .width('80%')
-      .margin({ top: 16 })
-
-      // 错误信息
-      if (this.errorMsg) {
-        Text(this.errorMsg)
-          .fontSize(13)
-          .fontColor('#E17055')
-          .margin({ top: 12 })
-      }
-
-      // 登录按钮
-      Button('登录')
-        .width('80%')
+        .width('100%')
         .height(48)
-        .fontSize(18)
-        .fontColor(Color.White)
-        .backgroundColor('#6C5CE7')
+        .backgroundColor(this.colors().primary)
         .borderRadius(12)
-        .margin({ top: 32 })
         .enabled(!this.isLoading && this.username.length > 0 && this.password.length > 0)
         .onClick(() => {
           this.handleLogin();
         })
+      }
+      .width('86%')
+      .padding(24)
+      .backgroundColor(this.colors().glassBg)
+      .borderRadius(20)
+      .border({ width: 1, color: this.colors().glassBorder })
+      .backdropBlur(this.colors().glassBlur)
 
       // 注册链接
       Text('没有账号？点击注册')
         .fontSize(14)
-        .fontColor('#6C5CE7')
+        .fontColor(this.colors().primary)
         .margin({ top: 24 })
         .onClick(() => {
           router.pushUrl({ url: 'pages/RegisterPage' });
         })
 
-      // 生成测试数据
-      Text('生成测试数据')
-        .fontSize(12)
-        .fontColor('#636E72')
-        .margin({ top: 32 })
-        .onClick(() => {
-          this.handleGenerateTestData();
-        })
-
-      if (this.testMsg) {
-        Text(this.testMsg)
+      // 开发工具：生成测试数据（仅 ENABLE_DEV_TOOLS 时显示）
+      if (ENABLE_DEV_TOOLS) {
+        Text('生成测试数据')
           .fontSize(12)
-          .fontColor('#00B894')
-          .margin({ top: 4 })
+          .fontColor(this.colors().textSecondary)
+          .margin({ top: 32 })
+          .onClick(() => {
+            this.handleGenerateTestData();
+          })
+
+        if (this.testMsg) {
+          Text(this.testMsg)
+            .fontSize(12)
+            .fontColor(this.colors().success)
+            .margin({ top: 4 })
+        }
       }
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F0F2F5')
+    .backgroundColor(this.colors().background)
     .alignItems(HorizontalAlign.Center)
   }
 
@@ -187,22 +215,18 @@ struct LoginPage {
       return;
     }
 
+    // 与注册时的 trim 保持一致，避免首尾空格导致匹配不到已存用户名
+    const name = this.username.trim();
     this.isLoading = true;
     this.errorMsg = '';
 
     try {
-      // 如果密码是占位符，用保存的 hash 直接登录
-      const savedHash = this.authService.getSavedPasswordHash();
-      const actualPassword = this.password;
-
-      const success = await this.authService.login(this.username, actualPassword);
+      const success = await this.authService.login(name, this.password);
       if (success) {
-        // 保存设置
-        await this.authService.setRememberPassword(this.rememberPassword);
+        await this.authService.setRememberAccount(this.rememberAccount);
         await this.authService.setAutoLogin(this.autoLogin);
-        if (this.rememberPassword) {
-          // 保存凭据供下次填充
-          await this.authService.saveCredentials(this.username, '');
+        if (this.rememberAccount) {
+          await this.authService.saveUsername(name);
         }
         this.navigateToMain();
       } else {
@@ -216,9 +240,13 @@ struct LoginPage {
   }
 
   private navigateToMain(): void {
-    // 将 dbRepo 和 authService 存入 AppStorage
+    // 将 dbRepo 和 authService 存入 AppStorage（全局共享单实例）
     AppStorage.setOrCreate('dbRepo', this.dbRepo);
     AppStorage.setOrCreate('authService', this.authService);
+
+    // 通知 EntryAbility 构建监测服务链（共享同一 dbRepo，含已设置的 currentUserId）
+    const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    ctx.eventHub.emit(EVENT_LOGIN_SUCCESS);
 
     router.replaceUrl({ url: 'pages/Index' });
   }

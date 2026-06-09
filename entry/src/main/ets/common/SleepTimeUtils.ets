@@ -2,22 +2,18 @@
  * 睡眠时间窗口工具
  * 处理 23:30-06:00 跨午夜的时间计算
  */
-import {
-  SLEEP_START_HOUR, SLEEP_START_MINUTE,
-  SLEEP_END_HOUR, SLEEP_END_MINUTE
-} from './Constants';
+import { formatDateKey, parseDateKey } from './DateUtils';
+import { AppSettings } from './AppSettings';
 
 /**
- * 判断当前时间是否在睡眠窗口内（23:30 - 06:00）
+ * 判断当前时间是否在睡眠窗口内（默认 23:30 - 06:00，可在设置中调整）
  */
 export function isInSleepWindow(): boolean {
   const now = new Date();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
-  const totalMinutes = hours * 60 + minutes;
+  const totalMinutes = now.getHours() * 60 + now.getMinutes();
 
-  const sleepStartTotal = SLEEP_START_HOUR * 60 + SLEEP_START_MINUTE; // 23*60+30 = 1410
-  const sleepEndTotal = SLEEP_END_HOUR * 60 + SLEEP_END_MINUTE;       // 6*60+0 = 360
+  const sleepStartTotal = AppSettings.sleepStartHour * 60 + AppSettings.sleepStartMinute;
+  const sleepEndTotal = AppSettings.sleepEndHour * 60 + AppSettings.sleepEndMinute;
 
   // 睡眠窗口跨午夜：23:30~24:00 和 00:00~06:00
   return totalMinutes >= sleepStartTotal || totalMinutes < sleepEndTotal;
@@ -25,13 +21,13 @@ export function isInSleepWindow(): boolean {
 
 /**
  * 获取当前夜晚的日期键（YYYY-MM-DD）
- * 凌晨 0-6 点归属前一晚
+ * 凌晨时段（早于睡眠结束）归属前一晚
  */
 export function getCurrentNightDateKey(): string {
   const now = new Date();
   const hours = now.getHours();
 
-  if (hours < SLEEP_END_HOUR) {
+  if (hours < AppSettings.sleepEndHour) {
     // 凌晨时段，归属前一天
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -56,10 +52,7 @@ export function getPreviousNightDateKey(): string {
 export function getSleepWindowStartTimestamp(): number {
   const now = new Date();
   const start = new Date(now);
-  start.setHours(SLEEP_START_HOUR, SLEEP_START_MINUTE, 0, 0);
-
-  // 如果当前时间已过 06:00 但还没到 23:30，则 start 是今晚
-  // 如果当前时间在 00:00-06:00 之间，start 实际上是昨晚的（已经过去）
+  start.setHours(AppSettings.sleepStartHour, AppSettings.sleepStartMinute, 0, 0);
   return start.getTime();
 }
 
@@ -69,10 +62,10 @@ export function getSleepWindowStartTimestamp(): number {
 export function getSleepWindowEndTimestamp(): number {
   const now = new Date();
   const end = new Date(now);
-  end.setHours(SLEEP_END_HOUR, SLEEP_END_MINUTE, 0, 0);
+  end.setHours(AppSettings.sleepEndHour, AppSettings.sleepEndMinute, 0, 0);
 
-  if (now.getHours() >= SLEEP_END_HOUR) {
-    // 已经过了今天的 06:00，结束时间是明天 06:00
+  if (now.getHours() >= AppSettings.sleepEndHour) {
+    // 已经过了今天的结束时间，结束时间是明天
     end.setDate(end.getDate() + 1);
   }
   return end.getTime();
@@ -96,22 +89,4 @@ export function getMillisUntilNextSleepWindow(): number {
     diff += 24 * 60 * 60 * 1000;
   }
   return diff;
-}
-
-/**
- * 格式化日期为 YYYY-MM-DD
- */
-function formatDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-/**
- * 解析 YYYY-MM-DD 为 Date 对象
- */
-function parseDateKey(dateKey: string): Date {
-  const parts = dateKey.split('-');
-  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
 }

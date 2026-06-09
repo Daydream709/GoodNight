@@ -36,6 +36,7 @@ struct Index {
         .tabBar(this.TabBuilder($r('app.media.tab_profile'), '我的', 2))
       }
       .scrollable(false)
+      .animationDuration(280)
       .barBackgroundColor(this.colors().tabBarBg)
       .barMode(BarMode.Fixed)
       .width('100%')

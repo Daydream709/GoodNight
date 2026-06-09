@@ -8,10 +8,10 @@ import { User } from '../../model/User';
 import { DatabaseRepository } from '../data/DatabaseRepository';
 import {
   TABLE_USERS, TABLE_APP_CONFIG,
-  CONFIG_KEY_REMEMBER_PASSWORD, CONFIG_KEY_AUTO_LOGIN,
-  CONFIG_KEY_SAVED_USERNAME, CONFIG_KEY_SAVED_PASSWORD_HASH,
-  CONFIG_KEY_CURRENT_USER_ID
+  CONFIG_KEY_REMEMBER_ACCOUNT, CONFIG_KEY_AUTO_LOGIN,
+  CONFIG_KEY_SAVED_USERNAME, CONFIG_KEY_CURRENT_USER_ID
 } from '../../common/Constants';
+import { hashPassword } from '../../common/PasswordHasher';
 import { logInfo, logError } from '../../common/Logger';
 
 export class AuthService implements IAuthService {
@@ -29,15 +29,16 @@ export class AuthService implements IAuthService {
       return false;
     }
 
-    if (username.length < 2 || password.length < 4) {
+    const name = username.trim();
+    if (name.length < 2 || password.length < 4) {
       logError('Username must be >= 2 chars, password >= 4 chars');
       return false;
     }
 
     try {
-      const hash = this.hashPassword(password);
+      const hash = hashPassword(password);
       const values: Record<string, relationalStore.ValueType> = {
-        'username': username,
+        'username': name,
         'password_hash': hash,
         'created_at': Date.now()
       };
@@ -60,7 +61,7 @@ export class AuthService implements IAuthService {
     }
 
     try {
-      const hash = this.hashPassword(password);
+      const hash = hashPassword(password);
       const predicates = new relationalStore.RdbPredicates(TABLE_USERS);
       predicates.equalTo('username', username);
       predicates.equalTo('password_hash', hash);
@@ -114,19 +115,19 @@ export class AuthService implements IAuthService {
     return this.currentUser;
   }
 
-  isRememberPassword(): boolean {
-    return this.getConfig(CONFIG_KEY_REMEMBER_PASSWORD) === 'true';
+  isRememberAccount(): boolean {
+    return this.getConfig(CONFIG_KEY_REMEMBER_ACCOUNT) === 'true';
   }
 
   isAutoLogin(): boolean {
     return this.getConfig(CONFIG_KEY_AUTO_LOGIN) === 'true';
   }
 
-  async setRememberPassword(remember: boolean): Promise<void> {
-    await this.saveConfig(CONFIG_KEY_REMEMBER_PASSWORD, remember ? 'true' : 'false');
+  async setRememberAccount(remember: boolean): Promise<void> {
+    await this.saveConfig(CONFIG_KEY_REMEMBER_ACCOUNT, remember ? 'true' : 'false');
     if (!remember) {
       await this.saveConfig(CONFIG_KEY_SAVED_USERNAME, '');
-      await this.saveConfig(CONFIG_KEY_SAVED_PASSWORD_HASH, '');
+      await this.saveConfig(CONFIG_KEY_AUTO_LOGIN, 'false');
     }
   }
 
@@ -136,10 +137,6 @@ export class AuthService implements IAuthService {
 
   getSavedUsername(): string {
     return this.getConfig(CONFIG_KEY_SAVED_USERNAME);
-  }
-
-  getSavedPasswordHash(): string {
-    return this.getConfig(CONFIG_KEY_SAVED_PASSWORD_HASH);
   }
 
   async tryAutoLogin(): Promise<boolean> {
@@ -190,11 +187,10 @@ export class AuthService implements IAuthService {
   }
 
   /**
-   * 保存用户凭据（记住密码时调用）
+   * 保存记住的用户名（记住账号时调用）
    */
-  async saveCredentials(username: string, passwordHash: string): Promise<void> {
+  async saveUsername(username: string): Promise<void> {
     await this.saveConfig(CONFIG_KEY_SAVED_USERNAME, username);
-    await this.saveConfig(CONFIG_KEY_SAVED_PASSWORD_HASH, passwordHash);
   }
 
   // ========== 用户信息修改 ==========
@@ -203,7 +199,8 @@ export class AuthService implements IAuthService {
     if (!this.currentUser) {
       return false;
     }
-    if (newUsername.length < 2) {
+    const name = newUsername.trim();
+    if (name.length < 2) {
       return false;
     }
     const store = this.dbRepo.getStore();
@@ -213,7 +210,7 @@ export class AuthService implements IAuthService {
     try {
       // 检查用户名是否已被占用
       const predicates = new relationalStore.RdbPredicates(TABLE_USERS);
-      predicates.equalTo('username', newUsername);
+      predicates.equalTo('username', name);
       predicates.notEqualTo('id', this.currentUser.id);
       const resultSet = await store.query(predicates, ['id']);
       if (resultSet.goToFirstRow()) {
@@ -223,12 +220,12 @@ export class AuthService implements IAuthService {
       }
       resultSet.close();
 
-      const values: Record<string, relationalStore.ValueType> = { 'username': newUsername };
+      const values: Record<string, relationalStore.ValueType> = { 'username': name };
       const updatePred = new relationalStore.RdbPredicates(TABLE_USERS);
       updatePred.equalTo('id', this.currentUser.id);
       await store.update(values, updatePred);
-      this.currentUser.username = newUsername;
-      logInfo('Username updated to: %{public}s', newUsername);
+      this.currentUser.username = name;
+      logInfo('Username updated to: %{public}s', name);
       return true;
     } catch (err) {
       logError('Update username failed: %{public}s', (err as Error).message ?? '');
@@ -240,7 +237,7 @@ export class AuthService implements IAuthService {
     if (!this.currentUser) {
       return false;
     }
-    const oldHash = this.hashPassword(oldPassword);
+    const oldHash = hashPassword(oldPassword);
     if (oldHash !== this.currentUser.passwordHash) {
       logError('Old password incorrect');
       return false;
@@ -253,7 +250,7 @@ export class AuthService implements IAuthService {
       return false;
     }
     try {
-      const newHash = this.hashPassword(newPassword);
+      const newHash = hashPassword(newPassword);
       const values: Record<string, relationalStore.ValueType> = { 'password_hash': newHash };
       const predicates = new relationalStore.RdbPredicates(TABLE_USERS);
       predicates.equalTo('id', this.currentUser.id);
@@ -339,18 +336,5 @@ export class AuthService implements IAuthService {
     } catch (err) {
       logError('Failed to save config: %{public}s', (err as Error).message ?? '');
     }
-  }
-
-  /**
-   * 简单哈希函数（非加密级别，适合本地 demo）
-   */
-  private hashPassword(password: string): string {
-    let hash: number = 0;
-    for (let i = 0; i < password.length; i++) {
-      const ch = password.charCodeAt(i);
-      hash = ((hash << 5) - hash) + ch;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return 'h_' + Math.abs(hash).toString(36);
   }
 }

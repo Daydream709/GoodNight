@@ -10,15 +10,39 @@ import { logInfo, logError } from '../../common/Logger';
 const EVENT_SCREEN_ON: string = 'usual.event.SCREEN_ON';
 const EVENT_SCREEN_OFF: string = 'usual.event.SCREEN_OFF';
 
+// 同一次"使用手机"可能同时触发真实亮屏广播与离开页面的手动计数；
+// 在此窗口内的重复信号合并为一次，避免真机上双计数
+const SCREEN_ON_DEDUP_MS: number = 1500;
+
 export class ScreenMonitorService implements IScreenMonitorService {
   private screenOnCount: number = 0;
   private subscriber: commonEventManager.CommonEventSubscriber | null = null;
   private callback: ScreenEventCallback | null = null;
+  private lastOnTs: number = 0;
 
   startMonitoring(callback: ScreenEventCallback): void {
     this.callback = callback;
     this.screenOnCount = 0;
+    this.lastOnTs = 0;
     this.setupSubscription();
+  }
+
+  /**
+   * 统一的"亮屏/使用手机"计数入口：真实亮屏广播与手动 increment() 都经此处，
+   * 共用去抖窗口，避免真机上同一次使用被两个信号源各记一次（见 #6）。
+   */
+  private registerScreenOn(source: string): void {
+    const now = Date.now();
+    if (now - this.lastOnTs < SCREEN_ON_DEDUP_MS) {
+      logInfo('Screen-on ignored (dedup), source: %{public}s', source);
+      return;
+    }
+    this.lastOnTs = now;
+    this.screenOnCount++;
+    logInfo('Screen-on counted (%{public}s), count: %{public}s', source, this.screenOnCount.toString());
+    if (this.callback) {
+      this.callback.onScreenOn();
+    }
   }
 
   private async setupSubscription(): Promise<void> {
@@ -37,11 +61,7 @@ export class ScreenMonitorService implements IScreenMonitorService {
           }
           const event: string = data.event;
           if (event === EVENT_SCREEN_ON) {
-            this.screenOnCount++;
-            logInfo('Screen ON detected, count: %{public}s', this.screenOnCount.toString());
-            if (this.callback) {
-              this.callback.onScreenOn();
-            }
+            this.registerScreenOn('broadcast');
           } else if (event === EVENT_SCREEN_OFF) {
             logInfo('Screen OFF detected');
             if (this.callback) {
@@ -69,11 +89,21 @@ export class ScreenMonitorService implements IScreenMonitorService {
     this.callback = null;
   }
 
+  /**
+   * 手动记一次"使用手机"（将"离开监测页"计为一次使用，
+   * 兼容模拟机无法触发真实锁屏/亮屏广播的场景）。
+   * 与真实亮屏广播共用去抖，二者临近时只计一次。
+   */
+  increment(): void {
+    this.registerScreenOn('manual');
+  }
+
   getScreenOnCount(): number {
     return this.screenOnCount;
   }
 
   resetScreenOnCount(): void {
     this.screenOnCount = 0;
+    this.lastOnTs = 0;
   }
 }
