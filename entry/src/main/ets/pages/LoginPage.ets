@@ -8,6 +8,7 @@ import { DatabaseRepository } from '../service/data/DatabaseRepository';
 import { AuthService } from '../service/auth/AuthService';
 import { TestDataGenerator } from '../common/TestDataGenerator';
 import { AppColors, ColorPalette } from '../common/AppColors';
+import { SiliconFlowService } from '../service/ai/SiliconFlowService';
 import { AppSettings } from '../common/AppSettings';
 import { EVENT_LOGIN_SUCCESS, ENABLE_DEV_TOOLS } from '../common/Constants';
 import { logError } from '../common/Logger';
@@ -244,11 +245,24 @@ struct LoginPage {
     AppStorage.setOrCreate('dbRepo', this.dbRepo);
     AppStorage.setOrCreate('authService', this.authService);
 
+    // 预加载健康贴士到 AppStorage，切换到健康 Tab 时可立即显示
+    this.prefetchHealthTip();
+
     // 通知 EntryAbility 构建监测服务链（共享同一 dbRepo，含已设置的 currentUserId）
     const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
     ctx.eventHub.emit(EVENT_LOGIN_SUCCESS);
 
     router.replaceUrl({ url: 'pages/Index' });
+  }
+
+  private async prefetchHealthTip(): Promise<void> {
+    try {
+      const aiService = new SiliconFlowService();
+      const tip = await aiService.fetchHealthTip();
+      AppStorage.setOrCreate('healthTip', tip);
+    } catch (err) {
+      AppStorage.setOrCreate('healthTip', '早睡早起，精神百倍。保持规律的作息是健康睡眠的第一步。');
+    }
   }
 
   private async handleGenerateTestData(): Promise<void> {

@@ -1,9 +1,10 @@
 /**
  * 好梦 (Good Night) 主入口
- * 底部导航：主页、统计、我的
+ * 底部导航：主页、统计、健康、我的
  */
 import { HomeTab } from '../tabs/HomeTab';
 import { StatisticsTab } from '../tabs/StatisticsTab';
+import { HealthTab } from '../tabs/HealthTab';
 import { ProfileTab } from '../tabs/ProfileTab';
 import { AppColors } from '../common/AppColors';
 
@@ -31,9 +32,14 @@ struct Index {
         .tabBar(this.TabBuilder($r('app.media.tab_stats'), '统计', 1))
 
         TabContent() {
+          HealthTab()
+        }
+        .tabBar(this.TabBuilder($r('app.media.tab_health'), '健康', 2))
+
+        TabContent() {
           ProfileTab()
         }
-        .tabBar(this.TabBuilder($r('app.media.tab_profile'), '我的', 2))
+        .tabBar(this.TabBuilder($r('app.media.tab_profile'), '我的', 3))
       }
       .scrollable(false)
       .animationDuration(280)
